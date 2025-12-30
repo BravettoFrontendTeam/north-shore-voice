@@ -1,0 +1,32 @@
+# Ignore artifacts:
+build
+coverage
+node_modules
+dist
+frontend/node_modules
+backend/node_modules
+**/*.min.js
+.env
+.DS_Store
+
+# Local editor/IDE folders
+.vscode
+.idea
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Generated/public files
+public
+frontend/dist
+
+# Prisma migrations
+**/prisma/migrations
+
+# Docker
+docker-compose.*
+
+# Ignore env variants
+.env.*

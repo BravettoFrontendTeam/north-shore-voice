@@ -1,0 +1,23 @@
+{
+  "name": "north-shore-automation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky install",
+    "check": "npx tsc --noEmit && npx prettier --check .",
+    "format": "npx prettier --write ."
+  },
+  "devDependencies": {
+    "husky": "^8.0.0",
+    "lint-staged": "^13.0.0",
+    "prettier": "2.8.0"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx,json,md,mdx,css,scss,html,yml,yaml,svg}": [
+      "prettier --write"
+    ],
+    "**/*.{ts,tsx}": [
+      "npx tsc --noEmit"
+    ]
+  }
+}

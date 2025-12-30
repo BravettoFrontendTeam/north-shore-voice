@@ -23,6 +23,7 @@ North Shore Voice is a modern, professional AI phone system platform that integr
 ## 🏗️ Tech Stack
 
 ### Frontend
+
 - React 18+ with TypeScript
 - Tailwind CSS for styling
 - Framer Motion for animations
@@ -30,6 +31,7 @@ North Shore Voice is a modern, professional AI phone system platform that integr
 - React Router for navigation
 
 ### Backend
+
 - Node.js/Express with TypeScript
 - PostgreSQL with Prisma ORM
 - JWT-based authentication
@@ -37,9 +39,30 @@ North Shore Voice is a modern, professional AI phone system platform that integr
 - AbëVoice API integration
 
 ### Infrastructure
+
 - Docker & Docker Compose
 - Nginx for frontend serving
 - Redis for caching (optional)
+
+## Agent / Automation
+
+This repository includes an agent prompt that defines minimal, YAGNI-driven automation behavior and operational rules. See `AGENT_PROMPT.md` for the agent guidelines, CI checklist, and communication style.
+
+## Pre-commit hooks (Husky + lint-staged)
+
+A simple pre-commit configuration is available at the repo root. To enable hooks locally:
+
+1. Install dev deps at repo root: `npm ci` (run from the repo root)
+2. The `prepare` script will run `husky install` automatically. If not, run `npm run prepare`.
+3. Hooks will run `prettier --check` and `npx tsc --noEmit` on staged files and block commits on failures.
+
+## Formatting & Prettier 🔧
+
+- Repository-wide Prettier settings live in `.prettierrc` and ignored paths are in `.prettierignore`.
+- Format all files: `npm run format` (runs `npx prettier --write .`).
+- Check formatting: `npm run check` (runs `npx prettier --check .` and `npx tsc --noEmit`).
+- VS Code: the repo recommends `esbenp.prettier-vscode` and enables `editor.formatOnSave` in `.vscode/settings.json`.
+- If you installed a different Prettier extension (e.g., nightly variants), pick one and disable the other to avoid conflicting formatters.
 
 ## 🚀 Quick Start
 
@@ -54,26 +77,30 @@ North Shore Voice is a modern, professional AI phone system platform that integr
 ### Development Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-org/northshore-voice.git
    cd northshore-voice
    ```
 
 2. **Install frontend dependencies**
+
    ```bash
    cd frontend
    npm install
    ```
 
 3. **Install backend dependencies**
+
    ```bash
    cd ../backend
    npm install
    ```
 
 4. **Configure environment variables**
-   
+
    Create `.env` file in the backend directory:
+
    ```env
    PORT=5000
    NODE_ENV=development
@@ -84,6 +111,7 @@ North Shore Voice is a modern, professional AI phone system platform that integr
    ```
 
 5. **Set up the database**
+
    ```bash
    cd backend
    npx prisma migrate dev
@@ -92,12 +120,14 @@ North Shore Voice is a modern, professional AI phone system platform that integr
 6. **Start the development servers**
 
    Terminal 1 (Backend):
+
    ```bash
    cd backend
    npm run dev
    ```
 
    Terminal 2 (Frontend):
+
    ```bash
    cd frontend
    npm run dev
@@ -157,18 +187,21 @@ northshore-voice/
 ## 🔌 API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - User login
 - `POST /api/auth/logout` - User logout
 - `GET /api/auth/me` - Get current user
 
 ### Voice Generation
+
 - `GET /api/voice/status` - Check AbëVoice API status
 - `GET /api/voice/voices` - List available voices
 - `POST /api/voice/generate` - Generate speech from text
 - `GET /api/voice/usage` - Get usage statistics
 
 ### Call Management
+
 - `POST /api/calls/initialize` - Start new call session
 - `POST /api/calls/:id/speech` - Process caller speech
 - `POST /api/calls/:id/end` - End call session
@@ -176,12 +209,14 @@ northshore-voice/
 - `GET /api/calls` - List call sessions
 
 ### Voice Training
+
 - `POST /api/training/upload` - Upload training sample
 - `POST /api/training/start` - Start model training
 - `GET /api/training/:id/status` - Get training status
 - `GET /api/training/models` - List voice models
 
 ### Analytics
+
 - `GET /api/analytics/overview` - Analytics overview
 - `GET /api/analytics/calls` - Call analytics
 - `GET /api/analytics/sentiment` - Sentiment analysis
@@ -192,6 +227,7 @@ northshore-voice/
 ### Brand Colors
 
 Update `frontend/tailwind.config.js`:
+
 ```javascript
 colors: {
   primary: {
@@ -205,6 +241,7 @@ colors: {
 ### Voice Configuration
 
 Configure default voice settings in the AbëVoice integration:
+
 ```typescript
 const defaultConfig = {
   stability: 0.5,
@@ -260,4 +297,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Built with ❤️ by North Shore Voice Team
-
