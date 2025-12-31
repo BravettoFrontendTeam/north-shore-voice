@@ -11,9 +11,27 @@ const router = Router();
 /**
  * POST /api/webhooks/call/incoming
  * Handle incoming call webhook from phone provider
+ * YAGNI × JØHN: Signature verification for telephony providers (essential security)
  */
 router.post('/call/incoming', async (req: Request, res: Response) => {
   try {
+    // Verify webhook signature if provider is Twilio
+    const provider = req.headers['x-provider'] || req.body.provider || 'unknown';
+    if (provider === 'twilio' && process.env.TWILIO_AUTH_TOKEN) {
+      const { verifyTwilioWebhook } = require('../utils/webhook-security');
+      const signature = req.headers['x-twilio-signature'] as string | undefined;
+      const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+      const isValid = verifyTwilioWebhook(
+        url,
+        req.body,
+        signature,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+    }
+
     const { callSid, from, to, direction } = req.body;
 
     console.log(`Incoming call webhook: ${from} -> ${to}`);
@@ -87,14 +105,21 @@ router.post('/call/transcription', async (req: Request, res: Response) => {
 /**
  * POST /api/webhooks/stripe
  * Handle Stripe webhooks
+ * YAGNI × JØHN: Signature verification required (essential security)
  */
 router.post('/stripe', async (req: Request, res: Response) => {
   try {
-    const sig = req.headers['stripe-signature'];
+    const sig = req.headers['stripe-signature'] as string | undefined;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    // In production, verify the webhook signature
-    // const event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    // Verify webhook signature (YAGNI × JØHN: Essential security)
+    if (process.env.NODE_ENV === 'production' || webhookSecret) {
+      const { verifyStripeWebhook } = require('../utils/webhook-security');
+      const isValid = verifyStripeWebhook(req.body, sig, webhookSecret);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+    }
 
     const event = JSON.parse(req.body.toString());
 

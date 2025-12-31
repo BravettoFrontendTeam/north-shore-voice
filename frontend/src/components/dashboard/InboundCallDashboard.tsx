@@ -9,12 +9,7 @@ import {
   Clock,
   TrendingUp,
   Settings,
-  Play,
-  Pause,
   PhoneForwarded,
-  Volume2,
-  UserCheck,
-  AlertCircle,
   CheckCircle,
   XCircle,
   Plus,
@@ -68,7 +63,7 @@ export default function InboundCallDashboard() {
   const [activeCalls, setActiveCalls] = useState<ActiveCall[]>([])
   const [routingRules, setRoutingRules] = useState<RoutingRule[]>([])
   const [stats, setStats] = useState<InboundStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [, setIsLoading] = useState(true)
   const [showRuleEditor, setShowRuleEditor] = useState(false)
   const [editingRule, setEditingRule] = useState<RoutingRule | null>(null)
 
@@ -680,4 +675,3 @@ export default function InboundCallDashboard() {
     </div>
   )
 }
-

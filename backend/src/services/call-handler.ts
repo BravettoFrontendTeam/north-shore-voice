@@ -354,7 +354,7 @@ export class CallHandler {
   /**
    * Get all active sessions
    */
-  getActiveSessions(): CallSession[] {
+  getActiveSessions(): Array<Omit<CallSession, 'businessContext'>> {
     return Array.from(activeSessions.values())
       .filter(s => s.status === 'active')
       .map(this.sanitizeSession);
@@ -380,4 +380,3 @@ export class CallHandler {
 export const callHandler = new CallHandler();
 
 export default CallHandler;
-

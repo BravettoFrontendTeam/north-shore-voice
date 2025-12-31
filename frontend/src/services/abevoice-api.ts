@@ -95,8 +95,11 @@ class AbëVoiceAPIService {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    // Prefer explicit apiKey, otherwise try session storage token
+    const token =
+      this.apiKey || (typeof window !== 'undefined' ? sessionStorage.getItem('token') : null);
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
   }
@@ -109,6 +112,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/status`, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       const data = await response.json();
       return data.status === 'online';
@@ -122,13 +126,14 @@ class AbëVoiceAPIService {
    */
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
     try {
-      const voiceId = request.voice 
-        ? (VOICES[request.voice as VoiceName]?.id || request.voice)
+      const voiceId = request.voice
+        ? VOICES[request.voice as VoiceName]?.id || request.voice
         : VOICES.abe.id;
 
       const response = await fetch(`${this.baseUrl}/generate`, {
         method: 'POST',
         headers: this.getHeaders(),
+        credentials: 'include',
         body: JSON.stringify({
           text: request.text,
           voice_id: voiceId,
@@ -153,7 +158,7 @@ class AbëVoiceAPIService {
    */
   async generateAudioUrl(request: GenerateRequest): Promise<string | null> {
     const response = await this.generate(request);
-    
+
     if (response.success && response.audio_base64) {
       // Convert base64 to blob URL
       const binaryString = atob(response.audio_base64);
@@ -164,7 +169,7 @@ class AbëVoiceAPIService {
       const blob = new Blob([bytes], { type: 'audio/mpeg' });
       return URL.createObjectURL(blob);
     }
-    
+
     return response.audio_url || null;
   }
 
@@ -176,11 +181,12 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/voices`, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
       // Return predefined voices if API unavailable
-      return Object.entries(VOICES).map(([key, value]) => ({
+      return Object.values(VOICES).map((value) => ({
         voice_id: value.id,
         name: value.name,
         category: value.category,
@@ -196,6 +202,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/usage`, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
@@ -220,6 +227,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/calls/initialize`, {
         method: 'POST',
         headers: this.getHeaders(),
+        credentials: 'include',
         body: JSON.stringify({
           phone_number: phoneNumber,
           voice_model_id: voiceModelId || VOICES.abe.id,
@@ -239,6 +247,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/calls/${sessionId}/end`, {
         method: 'POST',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
@@ -254,6 +263,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/calls/${sessionId}/transcript`, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
@@ -278,6 +288,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/calls?${queryParams}`, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
@@ -292,10 +303,13 @@ class AbëVoiceAPIService {
   /**
    * Upload training audio sample
    */
-  async uploadTrainingSample(file: File, metadata?: {
-    name?: string;
-    description?: string;
-  }): Promise<{ success: boolean; sample_id?: string; error?: string }> {
+  async uploadTrainingSample(
+    file: File,
+    metadata?: {
+      name?: string;
+      description?: string;
+    },
+  ): Promise<{ success: boolean; sample_id?: string; error?: string }> {
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -305,8 +319,9 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/training/upload`, {
         method: 'POST',
         headers: {
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
+        credentials: 'include',
         body: formData,
       });
       return await response.json();
@@ -358,6 +373,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/training/${modelId}/status`, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
@@ -373,6 +389,7 @@ class AbëVoiceAPIService {
       const response = await fetch(`${this.baseUrl}/training/samples/${sampleId}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
       return await response.json();
     } catch {
@@ -405,7 +422,7 @@ export function useVoiceGeneration() {
   const generate = useCallback(async (request: GenerateRequest) => {
     setIsGenerating(true);
     setError(null);
-    
+
     try {
       const url = await abevoiceApi.generateAudioUrl(request);
       if (url) {
@@ -423,19 +440,22 @@ export function useVoiceGeneration() {
     }
   }, []);
 
-  const play = useCallback(async (request: GenerateRequest) => {
-    const url = await generate(request);
-    if (url) {
-      setIsPlaying(true);
-      const audio = new Audio(url);
-      audio.onended = () => setIsPlaying(false);
-      audio.onerror = () => {
-        setIsPlaying(false);
-        setError('Playback failed');
-      };
-      await audio.play();
-    }
-  }, [generate]);
+  const play = useCallback(
+    async (request: GenerateRequest) => {
+      const url = await generate(request);
+      if (url) {
+        setIsPlaying(true);
+        const audio = new Audio(url);
+        audio.onended = () => setIsPlaying(false);
+        audio.onerror = () => {
+          setIsPlaying(false);
+          setError('Playback failed');
+        };
+        await audio.play();
+      }
+    },
+    [generate],
+  );
 
   const stop = useCallback(() => {
     setIsPlaying(false);
@@ -507,4 +527,3 @@ export function useApiStatus() {
 
   return { isOnline };
 }
-

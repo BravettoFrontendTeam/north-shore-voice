@@ -5,6 +5,7 @@
 
 import { WebSocket, WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
+import { authenticateWebSocket, extractTokenFromRequest } from '../middleware/websocket-auth';
 
 interface Client {
   ws: WebSocket;
@@ -16,20 +17,35 @@ const clients = new Map<WebSocket, Client>();
 
 /**
  * Setup WebSocket server
+ * YAGNI × JØHN: JWT authentication required (essential security)
  */
 export function setupWebSocket(wss: WebSocketServer) {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    console.log('WebSocket client connected');
+    // Extract and verify JWT token
+    const url = req.url || '';
+    const headers = req.headers as Record<string, string>;
+    const token = extractTokenFromRequest(url, headers);
+    
+    // Authenticate WebSocket connection
+    const authWs = authenticateWebSocket(ws, token);
+    if (!authWs) {
+      console.log('WebSocket connection rejected: Invalid or missing token');
+      ws.close(1008, 'Authentication required');
+      return;
+    }
 
-    // Initialize client
+    console.log(`WebSocket client connected: ${authWs.userId}`);
+
+    // Initialize client with authenticated user
     const client: Client = {
-      ws,
+      ws: authWs,
+      userId: authWs.userId,
       sessionIds: new Set(),
     };
-    clients.set(ws, client);
+    clients.set(authWs, client);
 
     // Handle messages
-    ws.on('message', (data: Buffer) => {
+    authWs.on('message', (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
         handleMessage(client, message);
@@ -39,21 +55,22 @@ export function setupWebSocket(wss: WebSocketServer) {
     });
 
     // Handle close
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
-      clients.delete(ws);
+    authWs.on('close', () => {
+      console.log(`WebSocket client disconnected: ${authWs.userId}`);
+      clients.delete(authWs);
     });
 
     // Handle errors
-    ws.on('error', (error) => {
+    authWs.on('error', (error) => {
       console.error('WebSocket error:', error);
-      clients.delete(ws);
+      clients.delete(authWs);
     });
 
     // Send welcome message
-    sendToClient(ws, {
+    sendToClient(authWs, {
       type: 'connected',
       message: 'Connected to North Shore Voice real-time server',
+      userId: authWs.userId,
       timestamp: new Date().toISOString(),
     });
   });
@@ -78,11 +95,11 @@ export function setupWebSocket(wss: WebSocketServer) {
 function handleMessage(client: Client, message: any) {
   switch (message.type) {
     case 'authenticate':
-      // Authenticate user
-      client.userId = message.userId;
+      // Already authenticated via JWT on connection
+      // Just confirm authentication
       sendToClient(client.ws, {
         type: 'authenticated',
-        userId: message.userId,
+        userId: client.userId,
       });
       break;
 

@@ -13,13 +13,15 @@ JWT_EXPIRES_IN=7d
 ```
 
 Generate a secure secret:
+
 ```bash
 # Node.js
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 # PowerShell
 [System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(64))
-```
+# OpenSSL (cross-platform)
+openssl rand -base64 32```
 
 ### Twilio Configuration
 
@@ -46,30 +48,37 @@ SIGNALWIRE_SPACE_URL=your-space.signalwire.com
 TELNYX_API_KEY=your-api-key
 ```
 
+> Note: `ABEVOICE_API_KEY` is optional for local development and demos. The project's validator treats it as non-critical so the backend can run without it; set it in `backend/.env` or your environment for full voice features.
+
 ## Security Features Implemented
 
 ### 1. Input Validation
+
 - Phone numbers validated using E.164 format
 - Email validation with format checking
 - Password strength requirements (8+ chars, uppercase, lowercase, number)
 - String sanitization to prevent injection attacks
 
 ### 2. Rate Limiting
+
 - Registration: 5 attempts per IP per hour
 - Login: 10 attempts per IP per 15 minutes
 - API endpoints: 100 requests per IP per 15 minutes
 
 ### 3. Webhook Security
+
 - Twilio webhook signature validation
 - Request origin verification
 - Timing-safe comparison for signatures
 
 ### 4. Authentication
+
 - JWT tokens with configurable expiration
 - Secure password hashing with bcrypt (12 rounds)
 - Token refresh mechanism
 
 ### 5. API Security
+
 - CORS configured for specific origins
 - Helmet.js for HTTP security headers
 - No sensitive data in error responses
@@ -90,13 +99,14 @@ TELNYX_API_KEY=your-api-key
 ## Webhook URL Configuration
 
 For production, use your public HTTPS URL:
+
 ```bash
 WEBHOOK_BASE_URL=https://yourdomain.com/api/telephony/webhooks
 ```
 
 For local development, use ngrok:
+
 ```bash
 ngrok http 5000
 # Then set WEBHOOK_BASE_URL to the ngrok URL
 ```
-

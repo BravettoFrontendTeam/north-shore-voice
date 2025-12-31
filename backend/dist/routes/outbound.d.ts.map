@@ -1,0 +1,1 @@
+{"version":3,"file":"outbound.d.ts","sourceRoot":"","sources":["../../src/routes/outbound.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,mBAAmB,EAAE,MAAM,kCAAkC,CAAC;AACvE,OAAO,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAGzD,QAAA,MAAM,MAAM,4CAAW,CAAC;AAKxB,eAAO,MAAM,wBAAwB,GAAI,WAAW,gBAAgB,EAAE,UAAU,mBAAmB,SAElG,CAAC;AAoeF,eAAe,MAAM,CAAC"}

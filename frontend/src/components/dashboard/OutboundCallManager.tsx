@@ -9,12 +9,10 @@ import {
   Plus,
   Upload,
   Calendar,
-  Clock,
   Target,
   TrendingUp,
   CheckCircle,
   XCircle,
-  Voicemail,
   Edit,
   Trash2,
   Eye,
@@ -22,8 +20,6 @@ import {
   Phone,
   ChevronDown,
   ChevronRight,
-  AlertCircle,
-  Settings,
   X,
   Save,
 } from 'lucide-react'
@@ -66,7 +62,7 @@ export default function OutboundCallManager() {
   const [activeTab, setActiveTab] = useState<'campaigns' | 'quickcall' | 'callbacks' | 'analytics'>('campaigns')
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [stats, setStats] = useState<OutboundStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [, setIsLoading] = useState(true)
   const [showCampaignCreator, setShowCampaignCreator] = useState(false)
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
   
@@ -908,4 +904,3 @@ export default function OutboundCallManager() {
     </div>
   )
 }
-

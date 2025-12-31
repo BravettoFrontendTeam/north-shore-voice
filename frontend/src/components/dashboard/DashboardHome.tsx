@@ -4,8 +4,6 @@ import {
   PhoneIncoming,
   PhoneOutgoing,
   Clock,
-  TrendingUp,
-  Users,
   ThumbsUp,
   Activity,
   ArrowUp,
@@ -330,4 +328,3 @@ export default function DashboardHome() {
     </div>
   )
 }
-

@@ -9,7 +9,6 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Volume2,
   Settings,
   Sparkles,
 } from 'lucide-react'
@@ -300,4 +299,3 @@ export default function VoiceTraining() {
     </div>
   )
 }
-

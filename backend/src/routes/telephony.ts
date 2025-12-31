@@ -304,22 +304,23 @@ router.delete('/numbers/:number', async (req: Request, res: Response) => {
  */
 router.get('/providers', async (req: Request, res: Response) => {
   try {
-    if (!telephonyService) {
+    const service = telephonyService;
+    if (!service) {
       return res.status(503).json({ error: 'Telephony service not initialized' });
     }
 
-    const providers = telephonyService.getProviders();
-    const health = telephonyService.getProviderHealth();
+    const providers = service.getProviders();
+    const health = service.getProviderHealth();
 
     const providerInfo = providers.map(p => ({
       name: p,
       healthy: health.get(p) || false,
-      costPerMinute: telephonyService.getProviderCost(p),
+      costPerMinute: service.getProviderCost(p),
     }));
 
     return res.json({
       providers: providerInfo,
-      cheapest: telephonyService.getCheapestProvider(),
+      cheapest: service.getCheapestProvider(),
     });
   } catch (error) {
     console.error('List providers error:', error);
@@ -514,4 +515,3 @@ function generateVoiceResponse(provider: TelephonyProvider): string {
 }
 
 export default router;
-

@@ -9,7 +9,6 @@ import {
   Mic,
   Settings,
   Users,
-  Clock,
   FileText,
   Bell,
   LogOut,
@@ -236,4 +235,3 @@ export default function Dashboard() {
     </div>
   )
 }
-

@@ -5,10 +5,13 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import type { SignOptions } from 'jsonwebtoken';
 
 // JWT Secret - MUST be set via environment variable in production
 const JWT_SECRET = process.env.JWT_SECRET;
 const SECRET = JWT_SECRET || 'dev-only-secret-do-not-use-in-production-' + Date.now();
+const JWT_EXPIRES_IN: SignOptions['expiresIn'] =
+  (process.env.JWT_EXPIRES_IN as SignOptions['expiresIn']) || '7d';
 
 // Mock users store (shared with auth routes in production, use database)
 const users = new Map<string, {
@@ -42,7 +45,10 @@ export function authMiddleware(
 ) {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const cookieToken = (req as any).cookies?.JSESSIONID as string | undefined;
+    const sessionToken = (req.session as any)?.token as string | undefined;
+    const token =
+      authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : sessionToken || cookieToken || null;
 
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
@@ -97,7 +103,10 @@ export function optionalAuthMiddleware(
 ) {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const cookieToken = (req as any).cookies?.JSESSIONID as string | undefined;
+    const sessionToken = (req.session as any)?.token as string | undefined;
+    const token =
+      authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : sessionToken || cookieToken || null;
 
     if (token) {
       const decoded = jwt.verify(token, SECRET) as { userId: string; email: string };
@@ -150,7 +159,7 @@ export function requirePlan(...allowedPlans: string[]) {
  */
 export function generateToken(userId: string, email: string): string {
   return jwt.sign({ userId, email }, SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: JWT_EXPIRES_IN,
   });
 }
 
@@ -164,4 +173,3 @@ export function verifyToken(token: string): { userId: string; email: string } | 
     return null;
   }
 }
-

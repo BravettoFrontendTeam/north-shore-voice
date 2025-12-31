@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
-  Filter,
   Download,
   PhoneIncoming,
   PhoneOutgoing,
@@ -345,4 +344,3 @@ export default function CallLogs() {
     </div>
   )
 }
-

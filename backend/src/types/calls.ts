@@ -204,6 +204,7 @@ export interface CallbackRequest {
   preferredTime?: Date;
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
   requestedAt: Date;
+  processedAt?: Date;
 }
 
 // ============= Configuration Types =============
@@ -321,4 +322,3 @@ export interface CallAnalytics {
   byDay?: Record<string, number>;
   byOutcome?: Record<string, number>;
 }
-

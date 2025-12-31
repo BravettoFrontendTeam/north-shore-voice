@@ -1,0 +1,1 @@
+{"version":3,"file":"inbound.d.ts","sourceRoot":"","sources":["../../src/routes/inbound.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,mBAAmB,EAAE,MAAM,kCAAkC,CAAC;AACvE,OAAO,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAEzD,QAAA,MAAM,MAAM,4CAAW,CAAC;AAKxB,eAAO,MAAM,uBAAuB,GAAI,WAAW,gBAAgB,EAAE,UAAU,mBAAmB,SAEjG,CAAC;AAmVF,eAAe,MAAM,CAAC"}
