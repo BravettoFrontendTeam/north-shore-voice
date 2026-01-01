@@ -8,10 +8,22 @@ import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 
 // JWT Secret - MUST be set via environment variable in production
+// P0 Fix 2: Enforce JWT secrets - hard fail in production
 const JWT_SECRET = process.env.JWT_SECRET;
-const SECRET = JWT_SECRET || 'dev-only-secret-do-not-use-in-production-' + Date.now();
 const JWT_EXPIRES_IN: SignOptions['expiresIn'] =
   (process.env.JWT_EXPIRES_IN as SignOptions['expiresIn']) || '7d';
+
+// P0 Fix 2: Production must have strong JWT_SECRET
+if (process.env.NODE_ENV === 'production') {
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error(
+      'JWT_SECRET required (32+ characters) in production. ' +
+      'Generate with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+    );
+  }
+}
+
+const SECRET = JWT_SECRET || 'dev-only-secret-do-not-use-in-production-' + Date.now();
 
 // Mock users store (shared with auth routes in production, use database)
 const users = new Map<string, {

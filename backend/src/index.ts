@@ -10,6 +10,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// P0 Fix 4: Initialize database connection pool
+import { prisma } from './db';
+
 import authRoutes from './routes/auth';
 import voiceRoutes from './routes/voice';
 import callRoutes from './routes/calls';

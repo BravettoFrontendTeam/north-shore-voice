@@ -15,21 +15,33 @@ const router = Router();
  */
 router.post('/call/incoming', async (req: Request, res: Response) => {
   try {
-    // Verify webhook signature if provider is Twilio
+    // P0 Fix 3: Verify webhook signatures - enforce in production
     const provider = req.headers['x-provider'] || req.body.provider || 'unknown';
-    if (provider === 'twilio' && process.env.TWILIO_AUTH_TOKEN) {
+    const isTwilio = provider === 'twilio' || req.headers['x-twilio-signature'];
+    
+    if (isTwilio && process.env.TWILIO_AUTH_TOKEN) {
       const { verifyTwilioWebhook } = require('../utils/webhook-security');
       const signature = req.headers['x-twilio-signature'] as string | undefined;
       const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+      
+      // P0 Fix 3: In production, signature is required
+      if (process.env.NODE_ENV === 'production' && !signature) {
+        return res.status(403).json({ error: 'Missing webhook signature' });
+      }
+      
       const isValid = verifyTwilioWebhook(
         url,
         req.body,
         signature,
         process.env.TWILIO_AUTH_TOKEN
       );
+      
       if (!isValid) {
-        return res.status(401).json({ error: 'Invalid webhook signature' });
+        return res.status(403).json({ error: 'Invalid webhook signature' });
       }
+    } else if (process.env.NODE_ENV === 'production' && isTwilio) {
+      // P0 Fix 3: Production requires signature verification
+      return res.status(403).json({ error: 'Webhook signature verification required' });
     }
 
     const { callSid, from, to, direction } = req.body;

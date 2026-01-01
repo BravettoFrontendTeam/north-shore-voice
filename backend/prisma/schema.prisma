@@ -1,12 +1,15 @@
 // Prisma Schema for North Shore Voice
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin", "darwin-arm64"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // P0 Fix 4: Use connection pooling (Vercel Postgres includes PgBouncer)
+  // Serverless: 1 connection per function instance
 }
 
 // User Management

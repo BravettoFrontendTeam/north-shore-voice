@@ -2,8 +2,13 @@
 set -euo pipefail
 
 # Simple dev smoke check: start backend and frontend dev servers and validate endpoints
-BACKEND_DIR="backend"
-FRONTEND_DIR="frontend"
+# Works from ANY directory
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+BACKEND_DIR="$PROJECT_ROOT/backend"
+FRONTEND_DIR="$PROJECT_ROOT/frontend"
 BACKEND_PORT="${BACKEND_PORT:-5050}"
 BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
@@ -46,7 +51,7 @@ echo "Starting backend (dev)..."
 cd "$BACKEND_DIR"
 PORT="$BACKEND_PORT" HOST="$BACKEND_HOST" npm run dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
-cd - >/dev/null
+cd "$PROJECT_ROOT"
 
 # Wait for backend
 echo "Waiting for backend /api/status..."
@@ -82,7 +87,7 @@ cd "$FRONTEND_DIR"
 # Force Vite to use the requested port/host (overrides vite.config.ts server.port)
 npm run dev -- --port "$FRONTEND_PORT" --host "$FRONTEND_HOST" > /tmp/frontend.log 2>&1 &
 FRONTEND_PID=$!
-cd - >/dev/null
+cd "$PROJECT_ROOT"
 
 # Wait for frontend
 echo "Waiting for frontend root..."

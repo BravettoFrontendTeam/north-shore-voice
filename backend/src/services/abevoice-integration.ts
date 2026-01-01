@@ -122,6 +122,18 @@ export class AbëVoiceIntegration {
         duration?: number;
       };
 
+      // P0 Fix 1: Remove simulation mode - fail loud in production
+      if (response.status !== 200) {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(`AbëVoice API failed: ${response.status} ${response.statusText}`);
+        }
+        // Dev mode: return error gracefully
+        return {
+          success: false,
+          error: `AbëVoice API failed: ${response.status}`,
+        };
+      }
+
       if (data.success && data.audio_base64) {
         return {
           success: true,
@@ -129,12 +141,20 @@ export class AbëVoiceIntegration {
           duration: data.duration,
         };
       } else {
+        // P0 Fix 1: In production, throw on API errors
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(`AbëVoice API error: ${data.error || 'Failed to generate audio'}`);
+        }
         return {
           success: false,
           error: data.error || 'Failed to generate audio',
         };
       }
     } catch (error) {
+      // P0 Fix 1: In production, propagate errors instead of masking them
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`AbëVoice API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -255,7 +275,11 @@ export class AbëVoiceIntegration {
         error: data.error,
       };
     } catch (error) {
-      // Simulate success for demo/development
+      // P0 Fix 1: Fail loud in production
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`AbëVoice API call acceptance failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      // Dev mode: simulate for development
       console.log('AbëVoice API not available, simulating call acceptance');
       return {
         success: true,
@@ -305,7 +329,11 @@ export class AbëVoiceIntegration {
         error: data.error,
       };
     } catch (error) {
-      // Simulate success for demo/development
+      // P0 Fix 1: Fail loud in production
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`AbëVoice API outbound call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      // Dev mode: simulate for development
       console.log('AbëVoice API not available, simulating outbound call');
       return {
         success: true,

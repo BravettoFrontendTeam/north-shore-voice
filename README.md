@@ -178,11 +178,41 @@ northshore-voice/
 │   │   ├── middleware/      # Express middleware
 │   │   └── index.ts
 │   ├── prisma/              # Database schema
+│   ├── tests/               # Test files
 │   └── package.json
 │
+├── scripts/                  # Deployment & validation scripts
+│   ├── validate-p0-fixes.sh # Validate P0 fixes
+│   ├── run-tests.sh         # Run test suite
+│   ├── check-env.sh         # Check environment variables
+│   └── setup-vercel-env.sh  # Setup Vercel environment
+│
+├── docs/                     # Documentation
+│   ├── TCPA_COMPLIANCE.md   # TCPA compliance guide
+│   └── CONVERGENCE_REPORT.md # System convergence report
+│
 ├── docker-compose.yml        # Docker configuration
-└── README.md
+├── DEPLOYMENT.md            # Complete deployment guide
+├── P0_FIXES.md             # P0 launch fixes documentation
+└── README.md                # This file
 ```
+
+## 🔧 Backend Quick Notes
+
+### Validating Secrets
+
+A convenience script validates critical environment variables:
+
+```bash
+cd backend
+npm run validate-secrets
+```
+
+Checks:
+- Required: `JWT_SECRET`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`
+- Optional: `ABEVOICE_API_KEY`, `ELEVENLABS_API_KEY`
+
+For local development, add these to `backend/.env` (do not commit secrets).
 
 ## 🔌 API Endpoints
 
