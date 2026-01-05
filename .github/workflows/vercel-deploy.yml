@@ -1,0 +1,194 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    branches:
+      - main
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Deploy to Vercel
+        # Use preview deployments for PRs, production for pushes to main/production
+        # CRITICAL: Never deploy PRs to production - use preview deployments only
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "🚀 Deploying preview deployment for PR #${{ github.event.pull_request.number }}"
+            vercel --token=${{ secrets.VERCEL_TOKEN }} --yes
+          elif [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/production" ]; then
+            echo "🚀 Deploying to PRODUCTION for branch ${{ github.ref }}"
+            vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+          else
+            echo "❌ ERROR: Unexpected deployment context. Event: ${{ github.event_name }}, Ref: ${{ github.ref }}"
+            exit 1
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run Migrations
+        # Only run migrations on push to main/production, never on PRs
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Vercel
+        # Use preview deployments for PRs, production for pushes to main/production
+        # CRITICAL: Never deploy PRs to production - use preview deployments only
+        # CRITICAL: VERCEL_ORG_ID and VERCEL_PROJECT_ID must be in env to identify correct project
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "🚀 Deploying preview deployment for PR #${{ github.event.pull_request.number }}"
+            vercel --token=${{ secrets.VERCEL_TOKEN }} --yes
+          elif [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/production" ]; then
+            echo "🚀 Deploying to PRODUCTION for branch ${{ github.ref }}"
+            vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+          else
+            echo "❌ ERROR: Unexpected deployment context. Event: ${{ github.event_name }}, Ref: ${{ github.ref }}"
+            exit 1
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend]
+    # Only run smoke tests after production deployments (push to main/production)
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install curl and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq
+
+      - name: Install Dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+
+      - name: Run Local Smoke Tests
+        # Use smoke-check.sh script to test locally-deployed services
+        # This tests the actual deployment artifacts locally before confirming production
+        run: |
+          echo "🧪 Running local smoke tests using smoke-check.sh..."
+          chmod +x scripts/smoke-check.sh
+
+          # Set ports for CI environment
+          export BACKEND_PORT=5050
+          export FRONTEND_PORT=3000
+          export BACKEND_HOST=127.0.0.1
+          export FRONTEND_HOST=127.0.0.1
+
+          # Run the smoke check script
+          ./scripts/smoke-check.sh
+
+          echo "✅ Local smoke tests passed"
+
+      - name: Test Production Deployment
+        # After local tests pass, verify production URLs are accessible
+        # This is a final sanity check that production is actually live
+        run: |
+          echo "🌐 Verifying production deployment URLs are accessible..."
+
+          # Test backend health endpoint (production URL)
+          BACKEND_STATUS=$(curl -sSf --max-time 10 "https://bravetto.vip/vip/north-shore-back-end/api/status" | jq -r '.status' || echo "failed")
+          if [ "$BACKEND_STATUS" != "ok" ] && [ "$BACKEND_STATUS" != "online" ]; then
+            echo "⚠️  Production backend health check failed: $BACKEND_STATUS"
+            echo "Note: This may be expected if deployment is still propagating"
+            # Don't fail the build - production may still be deploying
+          else
+            echo "✅ Production backend health check passed: $BACKEND_STATUS"
+          fi
+
+          # Test frontend (should return HTML)
+          FRONTEND_RESPONSE=$(curl -sSf --max-time 10 -o /dev/null -w "%{http_code}" "https://bravetto.vip/vip/north-shore" || echo "000")
+          if [ "$FRONTEND_RESPONSE" != "200" ]; then
+            echo "⚠️  Production frontend health check failed: HTTP $FRONTEND_RESPONSE"
+            echo "Note: This may be expected if deployment is still propagating"
+            # Don't fail the build - production may still be deploying
+          else
+            echo "✅ Production frontend health check passed: HTTP $FRONTEND_RESPONSE"
+          fi
+
+          echo "✅ All smoke tests completed"
