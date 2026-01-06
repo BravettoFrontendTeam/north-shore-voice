@@ -1,82 +1,85 @@
-# GitHub Copilot / AI Agent Instructions for North Shore Voice 🔧
+# GitHub Copilot / AI Agent Instructions — North Shore Voice 🔧
 
-## Quick overview
+## TL;DR
 
-- Purpose: Full-stack TypeScript app that implements an AI-powered voice platform built on AbëVoice. Frontend (React + Vite) and Backend (Node/Express + TypeScript + Prisma) are in this repo.
-- Where to start: `README.md` (quick start), `backend/src/` (API business logic & telephony), `frontend/src/` (UI + services), `backend/prisma/schema.prisma` (DB schema), `scripts/smoke-check.sh` (dev smoke tests).
-
-## Local dev & verification ✅
-
-- Install deps:
-  - Root: `npm ci` (sets up husky/prettier hooks)
-  - `cd backend && npm install`
-  - `cd frontend && npm install`
-- DB & migrations: `cd backend && npx prisma migrate dev` (runs migration and updates the client). Update `DATABASE_URL` in `backend/.env`.
-- Start dev servers:
-  - Backend: `cd backend && npm run dev` (uses `ts-node-dev`)
-  - Frontend: `cd frontend && npm run dev` (Vite; port configured to `3000` in `vite.config.ts`)
-- Quick smoke check: `./scripts/smoke-check.sh` — NOTE: the script defaults `BACKEND_PORT=5050` (override with `BACKEND_PORT=5000` if needed to match local server).
-
-## Key patterns & where to find them 🔎
-
-- Telephony plumbing: `backend/src/services/telephony/`
-  - Multi-provider service: `TelephonyService` (`index.ts`) orchestrates providers, failover, cost-selection.
-  - Implement new provider by adding `backend/src/services/telephony/providers/<provider>.ts` implementing `ITelephonyProvider` methods (`makeCall`, `getCallStatus`, `parseWebhook`, etc.).
-- AbëVoice integration: `backend/src/services/abevoice-integration.ts` — central place for TTS, inbound/outbound call control, and simulation when the API is unavailable.
-- Inbound/outbound call logic: `backend/src/services/inbound-call.service.ts` and `backend/src/services/outbound-call.service.ts`.
-- Webhooks: `backend/src/routes/webhooks.ts` and server uses `app.use('/api/webhooks', express.raw({ type: 'application/json' }))` — do not replace raw parser unintentionally; Twilio signature validation expects raw body.
-- Websockets & real-time: `backend/src/services/websocket.ts` (used to push live updates to UI).
-- DB schema: `backend/prisma/schema.prisma` — run `npx prisma migrate dev` after schema changes and commit generated migration files.
-
-## Conventions to follow ✍️
-
-- TypeScript strict mode is enforced; run `npx tsc --noEmit` (root `npm run check` covers type checks in pre-commit hooks).
-- Error/return style: service methods tend to return objects with `{ success: boolean, ... }` rather than throwing for expected failure cases. Follow the existing pattern (see `abevoice-integration.ts`, telephony providers).
-- Small, focused PRs: prefer incremental changes (service + tests + smoke-check update), include migration files when changing DB.
-- Formatting & pre-commit hooks: repo uses Prettier + Husky + lint-staged. Run `npm run format` and ensure hooks are installed (`npm run prepare`).
-- No secrets in source: use `.env` and `backend/scripts/validate-secrets.sh` to validate required vars before deployment.
-
-## Environment & integration points ⚙️
-
-- Important env vars (see `backend/SECURITY.md`): `JWT_SECRET`, `DATABASE_URL`, `ABEVOICE_API_URL`, `ABEVOICE_API_KEY`, `TWILIO_*`, `PLIVO_*`, `SIGNALWIRE_*`, `TELNYX_*`.
-- Docker Compose sets postgres/redis and provides a production-like environment: `docker-compose up -d` (see `docker-compose.yml` healthchecks and mapped ports).
-
-## Testing & verification guidance ✅
-
-- There's limited test coverage in the repo; rely on:
-  - Type checks: `npx tsc --noEmit`
-  - Formatting: `npx prettier --check .` or `npm run check`
-  - Smoke test: `./scripts/smoke-check.sh` (starts both dev servers and verifies a basic login flow)
-  - Manual verification for telephony: validate webhook parsing and provider healthchecks (see `TelephonyService.checkProviderHealth`).
-
-## Typical change examples (copy/paste friendly) ✨
-
-- Add a new telephony provider:
-  - Add `backend/src/services/telephony/providers/myprovider.ts` implementing `ITelephonyProvider`.
-  - Wire it into `backend/src/services/telephony/index.ts` createProvider switch.
-  - Add config (env or DB) and add healthcheck logic if needed.
-- Change webhook handling:
-  - Edit `backend/src/routes/webhooks.ts` but keep `express.raw` for the `/api/webhooks` route so signature validation still works.
-- Add a new API endpoint:
-  - Add route under `backend/src/routes/`, add business logic in `backend/src/services/`, add types to `backend/src/types/` and run `npx tsc`.
-
-## Safety & security notes ⚠️
-
-- Do not commit secrets or keys. Use `.env` for local development and update `SECURITY.md` as necessary.
-- `run-backend.bat` contains sample env lines; ensure sensitive values are removed before committing.
-
-## Agent behavior & operational recommendations 🤖
-
-- Keep changes minimal and fully verifiable: run `npm run dev`, `scripts/smoke-check.sh`, `npx tsc`, and `npx prisma migrate dev` if schema changes.
-- Add tests for new business logic where feasible and include steps to reproduce in PR description.
-- When touching webhook or telephony code, include manual test instructions (sample payloads or `curl`) and expected results.
-- If you need broader design decisions documented, add a short design note under `docs/` and update `README.md` to point to it.
-
-## Housekeeping & TODOs for maintainers
-
-- The `README.md` references `AGENT_PROMPT.md` but this file is not present; consider adding or linking the intended agent prompt (I can draft one if you want).
-- If you want stricter CI: add type-check and smoke-check steps to CI workflows.
+- Full-stack TypeScript: **Frontend** (React + Vite) + **Backend** (Node/Express + TypeScript + Prisma). Core focus: AbëVoice TTS + multi-provider telephony and robust webhook handling.
+- Start here: `README.md`, `AGENT_PROMPT.md`, `backend/src/`, `frontend/src/`, `backend/prisma/schema.prisma`.
 
 ---
 
-If any section is unclear or you'd like me to include concrete examples (e.g. sample `curl` payloads for webhook tests, or an `AGENT_PROMPT.md` draft), tell me which areas to expand and I will iterate. ✅
+## Quick commands (copy/paste) ✅
+
+- Install deps: `npm ci` (repo root)
+- Run backend: `cd backend && npm run dev` (default port 5000)
+- Run frontend: `cd frontend && npm run dev` (Vite, port 3000)
+- Run P0 smoke tests: `bash scripts/run-tests.sh` (includes `p0-launch-fixes.test.ts`)
+- Run full tests: `bash scripts/run-all-tests.sh`
+- Validate & deploy: `bash scripts/validate-p0-fixes.sh` then `bash scripts/deploy.sh` (uses Vercel; ensure envs are set)
+- Demo fallback (macOS): `scripts/demo-fallback.sh` (tries AbëVoice → cached audio → macOS `say`)
+
+---
+
+## AbëVoice, voice flows & tests 🔊
+
+(Agent-focused actionable items you can automate)
+
+- Where to edit voice/TTS: `backend/src/services/abevoice-integration.ts` (generation & emission metadata).
+  - Required metadata fields in emission: **`emotion`**, **`intensity`**, **`pacing`**, **`voice_style`**, **`directive`**.
+  - Tests: add/modify `backend/tests/abevoice.emotion.test.ts` to mock the network call and assert returned body/metadata includes those fields.
+  - Smoke script: `scripts/run-voice-smoke.sh` / `scripts/demo-fallback.sh` examine generated audio or fallback path and should be runnable in CI (mocking endpoint).
+- Prompt & appraisal guidance: see `AGENT_PROMPT.md` (appraisal-first, vulnerability mapping, and PR checklist: include appraisal summary + vulnerability mapping in PR notes).
+
+---
+
+## Telephony & Webhooks 🚨
+
+- Telephony core: `backend/src/services/telephony/` (see `index.ts` and `providers/`) — new providers implement `ITelephonyProvider` and are wired via the factory (`createTelephonyService` / `createProvider`).
+- Provider pattern: provider config objects use `priority`, `enabled`, and provider credentials; cost/priority logic lives in `TelephonyService`.
+- Webhooks: `backend/src/routes/webhooks.ts` MUST be mounted with raw body parsing in `index.ts`:
+  - `app.use('/api/webhooks', express.raw({ type: 'application/json' }))` — do not change this or signature verification breaks.
+  - Production MUST verify signatures (Twilio `x-twilio-signature`, Stripe `stripe-signature`). Dev/test fixtures may bypass verification.
+
+---
+
+## DB & Migrations 🗃️
+
+- Prisma schema: `backend/prisma/schema.prisma`.
+- After schema edits: `cd backend && npx prisma migrate dev --name <desc>`; commit `prisma/migrations` and review generated SQL.
+- Deploy uses `prisma migrate deploy` — ensure migrations are vetted in PRs.
+
+---
+
+## Testing, CI & Conventions ✅
+
+- P0-focused tests are explicit (look for `p0-` filenames and `P0 Fix` comments). Running `bash scripts/run-tests.sh` should be part of pre-merge checks.
+- Conventions to follow in code changes:
+  - Expected-return shape: many services return `{ success: boolean, ... }` rather than throwing for expected errors — match existing patterns.
+  - Keep PRs small for voice flows: include an appraisal blurb, mention vulnerabilities, and add a unit test asserting emotion metadata.
+  - Don't log secrets; use `scripts/setup-vercel-env.sh` or Vercel UI for production envs.
+
+---
+
+## Examples (copy/paste) ✨
+
+- Add AbëVoice unit test (Jest):
+  - Mock the HTTP client, call `abevoice-integration` with a canonical prompt, assert `response.metadata` includes `emotion` and `pacing`.
+- Add a telephony provider:
+  1. Create `backend/src/services/telephony/providers/<name>.ts` implementing `ITelephonyProvider`.
+  2. Wire into the factory in `backend/src/services/telephony/index.ts`.
+- Local webhook quick test (dev signatures off):
+  curl -X POST http://localhost:5000/api/webhooks/call/incoming \
+   -H 'Content-Type: application/json' \
+   --data '{"callSid":"C1","from":"+1555123","to":"+1555000","direction":"inbound"}'
+
+---
+
+## Agent Playbook & Where to look next (docs & examples) 📚
+
+- Agent guidance (primary): `AGENT_PROMPT.md` — **appraisal-first**, vulnerability mapping, and required PR checklist for voice flows.
+- Unified AI flows doc: `.github/ai-flows.md` — machine + human readable agent flows, actionable rules, and example JSON snippets (use this as the canonical mapping for agent automation).
+- Voice integration & tests: `backend/src/services/abevoice-integration.ts`, `backend/tests/abevoice.emotion.test.ts`, `scripts/run-voice-smoke.sh`, `scripts/demo-fallback.sh`
+- Telephony & webhooks: `backend/src/services/telephony/`, `backend/src/routes/webhooks.ts` (NOTE: webhooks rely on `express.raw()` for signature verification; do not change parsing)
+
+---
+
+If you'd like, I can run a quick checklist against the repo (look for missing voice tests, missing smoke scripts in CI, or missing PR checklist notes) and prepare a small PR that adds/updates the tests and a CI job — which do you prefer me to start with? ✅

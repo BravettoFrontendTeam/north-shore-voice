@@ -108,6 +108,10 @@ app.use('/api', inboundRoutes);
 app.use('/api', outboundRoutes);
 app.use('/api/telephony', telephonyRoutes);
 
+// Admin routes: empathy controls & AbëKEYs testing (radically simple MVP)
+import adminRoutes from './routes/admin';
+app.use('/api/admin', adminRoutes);
+
 setupWebSocket(wss);
 initializeInboundRoutes(wsService, abevoiceIntegration);
 initializeOutboundRoutes(wsService, abevoiceIntegration);

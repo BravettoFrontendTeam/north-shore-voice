@@ -1,0 +1,113 @@
+{
+  "repo": "north-shore",
+  "generated_at": "2026-01-06T00:00:00Z",
+  "root": {
+    "path": ".",
+    "summary": "Full-stack TypeScript app: frontend (React + Vite) + backend (Node/Express + TypeScript + Prisma) focused on AbëVoice TTS and multi-provider telephony",
+    "language": "TypeScript/Markdown/Shell"
+  },
+  "entries": [
+    { "path": "README.md", "type": "md", "summary": "Project overview, quick start and high-level architecture" },
+    { "path": "AGENT_PROMPT.md", "type": "md", "summary": "Guidance & templates for emotion-aware agent prompts and verification checklist (appraisal-first rules)" },
+    { "path": ".cursorrules", "type": "txt", "summary": "Repository-level agent automation rules for Copilot/Cursor/Windsurf/Claude" },
+    { "path": "CONVERGENCE_FIXES_SUMMARY.md", "type": "md", "summary": "Launch/convergence fixes summary and notes" },
+
+    { "path": "package.json", "type": "json", "summary": "Root npm scripts and workspace-level dependencies" },
+    { "path": "vercel.json", "type": "json", "summary": "Vercel deployment config" },
+
+    { "path": "scripts/", "type": "dir", "summary": "Utility scripts for ci, deploy, smoke-tests, demo fallback and env setup",
+      "children": [
+        { "path": "scripts/run-tests.sh", "type": "sh", "summary": "Run P0 and unit tests (smoke)" },
+        { "path": "scripts/run-all-tests.sh", "type": "sh", "summary": "Run all tests" },
+        { "path": "scripts/validate-p0-fixes.sh", "type": "sh", "summary": "Validate P0 fixes prior to deploy" },
+        { "path": "scripts/demo-fallback.sh", "type": "sh", "summary": "Demo fallback: check AbëVoice health, try API, fallback to cached audio or macOS `say`" },
+        { "path": "scripts/run-voice-smoke.sh", "type": "sh", "summary": "Voice smoke tests that exercise AbëVoice integration" },
+        { "path": "scripts/demo-audio/README.md", "type": "md", "summary": "Instructions for generating and storing demo audio fixtures" },
+        { "path": "scripts/generate-demo-audio.sh", "type": "sh", "summary": "Helper to generate cached demo audio files for deterministic demos" },
+        { "path": "scripts/mock/abevoice-mock.py", "type": "py", "summary": "Simple mocked AbëVoice API used by CI voice-smoke workflow" }
+      ]
+    },
+
+    { "path": "backend/", "type": "dir", "summary": "Server code (TypeScript) and infra for telephony, webhooks, and AbëVoice integration",
+      "children": [
+        { "path": "backend/src/index.ts", "type": "ts", "summary": "App bootstrap: express server mount points including raw webhook body parsing" },
+        { "path": "backend/src/db.ts", "type": "ts", "summary": "DB connection & helper for Prisma" },
+        { "path": "backend/prisma/schema.prisma", "type": "prisma", "summary": "Canonical schema for app data; migrations maintained in `prisma/migrations` (not listed)" },
+
+        { "path": "backend/src/services/abevoice-integration.ts", "type": "ts", "summary": "AbëVoice integration: TTS generation, returns emission metadata (emotion, intensity, pacing, voice_style, directive)" },
+        { "path": "backend/tests/abevoice.emotion.test.ts", "type": "ts", "summary": "Jest test that mocks AbëVoice and asserts metadata fields are present" },
+
+        { "path": "backend/src/services/telephony/", "type": "dir", "summary": "Telephony core and provider implementations; factory pattern with prioritization and provider config",
+          "children": [
+            { "path": "backend/src/services/telephony/index.ts", "type": "ts", "summary": "Telephony factory & service (createTelephonyService/createProvider)" },
+            { "path": "backend/src/services/telephony/types.ts", "type": "ts", "summary": "Shared telephony types & interfaces (ITelephonyProvider)" },
+            { "path": "backend/src/services/telephony/providers/twilio.ts", "type": "ts", "summary": "Twilio provider implementation" },
+            { "path": "backend/src/services/telephony/providers/plivo.ts", "type": "ts", "summary": "Plivo provider implementation" },
+            { "path": "backend/src/services/telephony/providers/telnyx.ts", "type": "ts", "summary": "Telnyx provider implementation" },
+            { "path": "backend/src/services/telephony/providers/signalwire.ts", "type": "ts", "summary": "SignalWire provider implementation" }
+          ]
+        },
+
+        { "path": "backend/src/routes/", "type": "dir", "summary": "REST routes for auth, telephony, webhooks, voice, outbound/inbound calls and admin",
+          "children": [
+            { "path": "backend/src/routes/webhooks.ts", "type": "ts", "summary": "Webhook endpoints (raw body required); handles call events and vendor signatures" },
+            { "path": "backend/src/routes/inbound.ts", "type": "ts", "summary": "Inbound call webhook handling and related call flow endpoints" },
+            { "path": "backend/src/routes/voice.ts", "type": "ts", "summary": "Voice/TTS endpoints that forward to AbëVoice integration" },
+            { "path": "backend/src/routes/outbound.ts", "type": "ts", "summary": "Outbound call endpoints and orchestration" },
+            { "path": "backend/src/routes/admin.ts", "type": "ts", "summary": "Admin-only routes (feature flags, manual fixes)" }
+          ]
+        },
+
+        { "path": "backend/src/services/call-handler.ts", "type": "ts", "summary": "High-level call orchestration logic used by inbound/outbound handlers" },
+        { "path": "backend/src/services/inbound-call.service.ts", "type": "ts", "summary": "Inbound call business logic" },
+        { "path": "backend/src/services/outbound-call.service.ts", "type": "ts", "summary": "Outbound call orchestration and provider selection" },
+
+        { "path": "backend/src/utils/webhook-security.ts", "type": "ts", "summary": "Utilities for validating webhook signatures and security helpers" },
+        { "path": "backend/src/middleware/websocket-auth.ts", "type": "ts", "summary": "Auth middleware for websocket connections" },
+        { "path": "backend/src/middleware/auth.ts", "type": "ts", "summary": "Bearer / session auth middleware for routes" },
+
+        { "path": "backend/README.md", "type": "md", "summary": "Backend-specific docs and local dev notes" },
+        { "path": "backend/jest.config.cjs", "type": "config", "summary": "Jest config for backend tests" }
+      ]
+    },
+
+    { "path": "frontend/", "type": "dir", "summary": "React + Vite frontend that interacts with AbëVoice demo UI and admin dashboard",
+      "children": [
+        { "path": "frontend/src/main.tsx", "type": "tsx", "summary": "Frontend entry (mounts App)" },
+        { "path": "frontend/src/App.tsx", "type": "tsx", "summary": "Main UI routes and top-level layout" },
+        { "path": "frontend/src/pages/Demo.tsx", "type": "tsx", "summary": "Demo UI to exercise TTS and demo-fallback options" },
+        { "path": "frontend/src/pages/AdminEmpathy.tsx", "type": "tsx", "summary": "Admin UI for voice training and empathy tuning" },
+        { "path": "frontend/src/services/abevoice-api.ts", "type": "ts", "summary": "Client-side helper calling backend voice endpoints" },
+        { "path": "frontend/src/components/dashboard/OutboundCallManager.tsx", "type": "tsx", "summary": "Component to schedule/outbound/manage calls" }
+      ]
+    },
+
+    { "path": "docs/", "type": "dir", "summary": "Design docs, compliance notes and architecture rationale",
+      "children": [
+        { "path": "docs/EMOTIONAL_INTELLIGENCE_ARCHITECTURE.md", "type": "md", "summary": "Emotion/agent reasoning architecture used by `AGENT_PROMPT.md`" },
+        { "path": "docs/TCPA_COMPLIANCE.md", "type": "md", "summary": "TCPA / telephony compliance notes for outbound calling" }
+      ]
+    },
+
+    { "path": ".github/", "type": "dir", "summary": "CI workflows and agent guidance",
+      "children": [
+        { "path": ".github/workflows/vercel-deploy.yml", "type": "yml", "summary": "CI workflow for Vercel deploys" },
+        { "path": ".github/workflows/voice-smoke.yml", "type": "yml", "summary": "CI job that validates `scripts/demo-fallback.sh` using a mocked AbëVoice endpoint" },
+        { "path": ".github/copilot-instructions.md", "type": "md", "summary": "High-level pointer doc for AI agents and Copilot (updated)" },
+        { "path": ".github/ai-flows.md", "type": "md", "summary": "Unified AI flows mapping triggers → routes → services; authoritative mapping for agent automation" },
+        { "path": ".github/repo-map.json", "type": "json", "summary": "Machine-readable map of repository (this file)" }
+      ]
+    },
+
+    { "path": "SECURITY.md", "type": "md", "summary": "Security practices and webhook signing notes" },
+    { "path": "VERCEL_LAUNCH_GUIDE.md", "type": "md", "summary": "Vercel deployment checklist and steps" },
+
+    { "path": ".archive/", "type": "dir", "summary": "Historic launch artifacts and frozen docs" }
+  ],
+
+  "notes": {
+    "voice_tips": "When touching AbëVoice flows: update `abevoice-integration.ts`, add a test asserting metadata (emotion/intensity/pacing), add smoke-check and include appraisal/vulnerability blurb in PR.",
+    "webhook_tips": "Do not change raw body parsing for webhook routes; signature verification depends on raw body.",
+    "telephony_tips": "Providers implement `ITelephonyProvider` and are selected by priority/cost; add provider under providers/ and wire in factory."
+  }
+}
