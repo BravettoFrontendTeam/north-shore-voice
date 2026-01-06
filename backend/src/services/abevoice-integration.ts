@@ -35,6 +35,8 @@ export interface GenerateOptions {
   pacing?: 'slow' | 'normal' | 'fast';
   voice_style?: 'plain' | 'reflective' | 'assertive';
   directive?: string; // free-form prosody directive
+  // Optional provider override: 'abevoice' | 'elevenlabs' | other
+  provider?: string;
 }
 
 export interface GenerateResult {
@@ -57,6 +59,9 @@ export interface UsageStats {
   requests_today: number;
   requests_limit: number;
 }
+
+import ElevenLabsProvider from './tts/elevenlabs'
+import TTSCache from './tts/cache'
 
 export class AbëVoiceIntegration {
   private baseUrl: string;
@@ -105,6 +110,30 @@ export class AbëVoiceIntegration {
 
     const voiceId = this.resolveVoiceId(voice);
 
+    // Build cache key (includes provider if set)
+    const cacheKey = TTSCache.buildCacheKey({ text, voice: voiceId, provider: (options as any).provider || 'abevoice', emotion: (options as any).emotion, intensity: (options as any).intensity, pacing: (options as any).pacing })
+
+    // Try cache first
+    const cached = TTSCache.getCachedAudio(cacheKey)
+    if (cached) {
+      return {
+        success: true,
+        audio_base64: cached.audio_base64,
+        duration: undefined,
+        metadata: { ...(cached.metadata || {}), provider: (options as any).provider || 'cache' },
+      }
+    }
+
+    // Provider override: delegate to ElevenLabs if requested
+    if ((options as any).provider === 'elevenlabs' || (options as any).provider === 'eleven') {
+      const el = new ElevenLabsProvider(process.env.ELEVENLABS_API_KEY)
+      const res = await el.generate(options)
+      if (res.success && res.audio_base64) {
+        try { TTSCache.setCachedAudio(cacheKey, res.audio_base64, res.metadata || {}) } catch (e) {}
+      }
+      return res
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/text-to-speech`, {
         method: 'POST',
@@ -151,6 +180,8 @@ export class AbëVoiceIntegration {
       }
 
       if (data.success && data.audio_base64) {
+        try { TTSCache.setCachedAudio(cacheKey, data.audio_base64, data.metadata || {}) } catch (e) {}
+        try { require('../utils/metrics').emitMetric('tts.request.latency', Date.now() - startTs, { provider: 'abevoice' }) } catch (e) {}
         return {
           success: true,
           audio_base64: data.audio_base64,
@@ -168,6 +199,7 @@ export class AbëVoiceIntegration {
         };
       }
     } catch (error) {
+      try { require('../utils/failure-store').recordFailure('abevoice', 'request_failed', error instanceof Error ? error.message : String(error)) } catch (e) {}
       // P0 Fix 1: In production, propagate errors instead of masking them
       if (process.env.NODE_ENV === 'production') {
         throw new Error(`AbëVoice API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

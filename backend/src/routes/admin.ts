@@ -44,8 +44,22 @@ router.post('/abekeys/test', async (req, res) => {
 
   // If local keys include other providers we could test them here (e.g., elevenlabs)
   if (keys && keys.elevenlabs_api_key) {
-    // minimal test: mark present (detailed integration can be added)
-    status.elevenlabs = { ok: true }
+    // perform a lightweight health check against ElevenLabs voices endpoint
+    try {
+      const res = await fetch('https://api.elevenlabs.io/v1/voices', {
+        method: 'GET',
+        headers: { 'xi-api-key': keys.elevenlabs_api_key },
+        timeout: 5000 as any,
+      } as any)
+
+      if (res.ok) {
+        status.elevenlabs = { ok: true }
+      } else {
+        status.elevenlabs = { ok: false, reason: `status ${res.status}` }
+      }
+    } catch (e: any) {
+      status.elevenlabs = { ok: false, reason: String(e.message || e) }
+    }
   } else {
     status.elevenlabs = { ok: false, reason: 'missing' }
   }
@@ -60,6 +74,18 @@ router.post('/abekeys/test', async (req, res) => {
   }
 
   res.json({ ok: true, facilityId, status, sample_base64 })
+})
+
+// GET /admin/failures - return recent failures (newest first)
+router.get('/failures', async (req, res) => {
+  const limit = Number(req.query.limit || 50)
+  try {
+    const { getRecentFailures } = require('../utils/failure-store')
+    const failures = getRecentFailures(limit)
+    res.json({ ok: true, failures })
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: String(e.message || e) })
+  }
 })
 
 export default router

@@ -70,10 +70,11 @@ describe('AbëVoiceIntegration emotion metadata', () => {
     const body = JSON.parse(call[1].body);
     expect(body.metadata).toMatchObject({ emotion: 'assurance', pacing: 'normal', intensity: 4 });
     expect(res.success).toBe(true);
+    expect(res.metadata).toBeDefined();
     expect(res.metadata).toMatchObject({ emotion: 'assurance', intensity: 4 });
     // intensity should be within 1-10
-    expect(typeof res.metadata.intensity).toBe('number');
-    expect(res.metadata.intensity).toBeGreaterThanOrEqual(1);
-    expect(res.metadata.intensity).toBeLessThanOrEqual(10);
+    expect(typeof res.metadata!.intensity).toBe('number');
+    expect(res.metadata!.intensity).toBeGreaterThanOrEqual(1);
+    expect(res.metadata!.intensity).toBeLessThanOrEqual(10);
   });
 });
