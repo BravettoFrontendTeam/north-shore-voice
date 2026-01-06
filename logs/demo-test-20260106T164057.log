@@ -1,0 +1,162 @@
+Logging demo test output to: /Users/michaelmataluni/Desktop/North Shore Phani/north-shore/logs/demo-test-20260106T164057.log
+🔬 Running Full Demo Test
+Project: /Users/michaelmataluni/Desktop/North Shore Phani/north-shore
+Skip env check: 1
+Skip external tests: 1
+
+Skipping environment check
+
+Step 2: Validating P0 launch fixes (scripts/validate-p0-fixes.sh)
+🔍 Validating P0 Launch Fixes...
+📁 Project root: /Users/michaelmataluni/Desktop/North Shore Phani/north-shore
+
+✓ Fix 1: Checking simulation mode removal...
+  ✅ Production mode throws errors
+✓ Fix 2: Checking JWT secret enforcement...
+  ✅ JWT_SECRET validation in place
+✓ Fix 3: Checking webhook signature verification...
+  ✅ Webhook signature verification enforced
+✓ Fix 4: Checking database pooling...
+  ✅ Database connection pool file exists
+  ✅ Prisma client configured
+✓ Fix 5: Checking TCPA documentation...
+  ✅ TCPA documentation exists
+  ✅ TCPA documentation contains required content
+✓ Fix 4: Checking Vercel configuration...
+  ✅ Vercel config updated
+✓ Checking tests...
+  ✅ P0 launch fixes tests exist
+
+✅ All P0 fixes validated!
+
+Next steps:
+  1. Run tests: bash "/Users/michaelmataluni/Desktop/North Shore Phani/north-shore/scripts/run-tests.sh"
+  2. Set environment variables in Vercel
+  3. Deploy: bash "/Users/michaelmataluni/Desktop/North Shore Phani/north-shore/scripts/deploy.sh"
+
+Step 3: Running unit tests (scripts/run-all-tests.sh)
+🧪 Running All Tests...
+📁 Backend directory: /Users/michaelmataluni/Desktop/North Shore Phani/north-shore/backend
+
+
+> northshore-voice-backend@1.0.0 test
+> jest --runInBand
+
+PASS tests/auth.login.test.ts
+  ● Console
+
+    console.log
+      Telephony Service initialized with 1 provider(s)
+
+      at TelephonyService.initializeProviders (src/services/telephony/index.ts:69:13)
+
+    console.log
+      Primary provider: twilio
+
+      at TelephonyService.initializeProviders (src/services/telephony/index.ts:70:13)
+
+    console.log
+      Telephony service initialized with providers: [ 'twilio' ]
+
+      at initializeTelephony (src/routes/telephony.ts:60:11)
+
+    console.log
+      ✅ Twilio configured: { accountSid: 'ACxxxxxx...', authToken: '***hidden***' }
+
+      at initializeTelephony (src/routes/telephony.ts:62:13)
+
+PASS tests/abevoice.emotion.test.ts
+  ● Console
+
+    console.info
+      {"ts":"2026-01-06T21:40:59.409Z","metric":"tts.request.latency","value":0,"tags":{"provider":"abevoice"}}
+
+      at Object.emitMetric (src/utils/metrics.ts:5:13)
+
+    console.info
+      {"ts":"2026-01-06T21:40:59.414Z","metric":"tts.request.latency","value":0,"tags":{"provider":"abevoice"}}
+
+      at Object.emitMetric (src/utils/metrics.ts:5:13)
+
+PASS tests/p0-launch-fixes.test.ts
+PASS tests/tts.cache.test.ts
+PASS tests/elevenlabs.provider.test.ts
+  ● Console
+
+    console.info
+      {"ts":"2026-01-06T21:40:59.566Z","metric":"tts.request.latency","value":0,"tags":{"provider":"elevenlabs"}}
+
+      at Object.emitMetric (src/utils/metrics.ts:5:13)
+
+PASS tests/abevoice.cache.delegate.test.ts
+PASS tests/abevoice.elevenlabs.delegate.test.ts
+PASS tests/metrics.test.ts
+  ● Console
+
+    console.info
+      {"ts":"2026-01-06T21:40:59.622Z","metric":"test.metric","value":123,"tags":{"provider":"test"}}
+
+      at emitMetric (src/utils/metrics.ts:5:13)
+
+PASS tests/failure-store.test.ts
+
+Test Suites: 9 passed, 9 total
+Tests:       22 passed, 22 total
+Snapshots:   0 total
+Time:        1.934 s, estimated 3 s
+Ran all test suites.
+Step 4: Running voice smoke tests
+🧪 Running AbeVoice emotion metadata smoke tests...
+
+> northshore-voice-backend@1.0.0 test
+> jest --runInBand abevoice.emotion.test.ts
+
+PASS tests/abevoice.emotion.test.ts
+  ● Console
+
+    console.info
+      {"ts":"2026-01-06T21:41:00.880Z","metric":"tts.request.latency","value":1,"tags":{"provider":"abevoice"}}
+
+      at Object.emitMetric (src/utils/metrics.ts:5:13)
+
+    console.info
+      {"ts":"2026-01-06T21:41:00.890Z","metric":"tts.request.latency","value":0,"tags":{"provider":"abevoice"}}
+
+      at Object.emitMetric (src/utils/metrics.ts:5:13)
+
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        0.882 s, estimated 1 s
+Ran all test suites matching abevoice.emotion.test.ts.
+✅ Voice smoke tests complete
+Skipping ElevenLabs smoke (no ELEVENLABS_API_KEY set or --skip-external)
+Step 6: Running smoke-check (starts dev servers, tests endpoints)
+Starting backend (dev)...
+Waiting for backend /api/status...
+waiting for backend... (1)
+Backend is up
+Starting frontend (dev)...
+Waiting for frontend root...
+curl: (7) Failed to connect to 127.0.0.1 port 3001 after 0 ms: Couldn't connect to server
+waiting for frontend... (1)
+Frontend is up
+Checking backend status response
+status=ok
+Testing login
+Set-Cookie present
+Smoke checks passed
+Step 7: Generating demo audio (scripts/generate-demo-audio.sh)
+🔊 Generating demo audio for scenario: assurance
+Text: You're in good hands. We'll make sure everything's set and secure.
+✅ AbëVoice online — requesting TTS
+✅ Received audio — saving to /Users/michaelmataluni/Desktop/North Shore Phani/north-shore/scripts/demo-audio/assurance.wav
+✅ Demo audio generated under scripts/demo-audio/
+
+🎉 Full Demo Test completed successfully
+Next steps: (if any failures above) review the specific failing step and re-run the script with appropriate env vars set.
+Usage notes:
+  - To skip environment checks:    bash scripts/run-demo-test.sh --skip-env-check
+  - To skip external provider tests: bash scripts/run-demo-test.sh --skip-external
+Exiting with success

@@ -35,6 +35,8 @@ export interface GenerateOptions {
   pacing?: 'slow' | 'normal' | 'fast';
   voice_style?: 'plain' | 'reflective' | 'assertive';
   directive?: string; // free-form prosody directive
+  // Optional provider override: 'abevoice' | 'elevenlabs' | other
+  provider?: string;
 }
 
 export interface GenerateResult {
@@ -57,6 +59,9 @@ export interface UsageStats {
   requests_today: number;
   requests_limit: number;
 }
+
+import ElevenLabsProvider from './tts/elevenlabs'
+import TTSCache from './tts/cache'
 
 export class AbëVoiceIntegration {
   private baseUrl: string;
@@ -105,6 +110,30 @@ export class AbëVoiceIntegration {
 
     const voiceId = this.resolveVoiceId(voice);
 
+    // Build cache key (includes provider if set)
+    const cacheKey = TTSCache.buildCacheKey({ text, voice: voiceId, provider: (options as any).provider || 'abevoice', emotion: (options as any).emotion, intensity: (options as any).intensity, pacing: (options as any).pacing })
+
+    // Try cache first
+    const cached = TTSCache.getCachedAudio(cacheKey)
+    if (cached) {
+      return {
+        success: true,
+        audio_base64: cached.audio_base64,
+        duration: undefined,
+        metadata: { ...(cached.metadata || {}), provider: (options as any).provider || 'cache' },
+      }
+    }
+
+    // Provider override: delegate to ElevenLabs if requested
+    if ((options as any).provider === 'elevenlabs' || (options as any).provider === 'eleven') {
+      const el = new ElevenLabsProvider(process.env.ELEVENLABS_API_KEY)
+      const res = await el.generate(options)
+      if (res.success && res.audio_base64) {
+        try { TTSCache.setCachedAudio(cacheKey, res.audio_base64, res.metadata || {}) } catch (e) {}
+      }
+      return res
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/text-to-speech`, {
         method: 'POST',
@@ -138,7 +167,21 @@ export class AbëVoiceIntegration {
         metadata?: Record<string, any>;
       };
 
+      // P0 Fix 1: Remove simulation mode - fail loud in production
+      if (response.status !== 200) {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(`AbëVoice API failed: ${response.status} ${response.statusText}`);
+        }
+        // Dev mode: return error gracefully
+        return {
+          success: false,
+          error: `AbëVoice API failed: ${response.status}`,
+        };
+      }
+
       if (data.success && data.audio_base64) {
+        try { TTSCache.setCachedAudio(cacheKey, data.audio_base64, data.metadata || {}) } catch (e) {}
+        try { require('../utils/metrics').emitMetric('tts.request.latency', Date.now() - startTs, { provider: 'abevoice' }) } catch (e) {}
         return {
           success: true,
           audio_base64: data.audio_base64,
@@ -146,12 +189,21 @@ export class AbëVoiceIntegration {
           metadata: data.metadata,
         };
       } else {
+        // P0 Fix 1: In production, throw on API errors
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(`AbëVoice API error: ${data.error || 'Failed to generate audio'}`);
+        }
         return {
           success: false,
           error: data.error || 'Failed to generate audio',
         };
       }
     } catch (error) {
+      try { require('../utils/failure-store').recordFailure('abevoice', 'request_failed', error instanceof Error ? error.message : String(error)) } catch (e) {}
+      // P0 Fix 1: In production, propagate errors instead of masking them
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`AbëVoice API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -272,7 +324,11 @@ export class AbëVoiceIntegration {
         error: data.error,
       };
     } catch (error) {
-      // Simulate success for demo/development
+      // P0 Fix 1: Fail loud in production
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`AbëVoice API call acceptance failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      // Dev mode: simulate for development
       console.log('AbëVoice API not available, simulating call acceptance');
       return {
         success: true,
@@ -322,7 +378,11 @@ export class AbëVoiceIntegration {
         error: data.error,
       };
     } catch (error) {
-      // Simulate success for demo/development
+      // P0 Fix 1: Fail loud in production
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`AbëVoice API outbound call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      // Dev mode: simulate for development
       console.log('AbëVoice API not available, simulating outbound call');
       return {
         success: true,
