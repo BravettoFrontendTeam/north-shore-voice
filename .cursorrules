@@ -1,0 +1,29 @@
+# Cursor / Agent Rules — North Shore
+
+# Purpose
+Rules for automated agents (Copilot, Cursor, Windsurf, Claude, etc.) operating on this repository. Agents must follow these rules and verify them as part of any automated change.
+
+# Mandatory behaviors
+- Appraisal-first: consult `AGENT_PROMPT.md` before editing any voice generation or empathetic flows.
+- Safety-first: never commit secrets or API keys. Use env scripts and encrypted storage.
+- Webhook integrity: do not change raw body parsing for webhook routes; signature verification relies on `express.raw()`.
+- Voice metadata: every TTS emission must include `metadata` containing `emotion` (string), `intensity` (1-10), `pacing` (slow|normal|fast). Unit tests must assert these.
+- PR content: for any changes touching voice or telephony, add a PR blurb with: Appraisal summary, Primary vulnerabilities, Chosen tone & rationale, Test checklist (unit + smoke).
+- Test & CI: add or update unit tests where relevant; add smoke-check scripts to `.github/workflows/voice-smoke.yml` when adding voice features.
+
+# Conventions
+- Use existing service return shapes `{ success: boolean, ... }` for expected failures.
+- Keep PRs small and focused for voice-affecting changes; include manual smoke-check steps in PR description.
+- When adding a telephony provider: implement `ITelephonyProvider` under `backend/src/services/telephony/providers/` and wire in factory.
+
+# Contact & escalation
+- If a change affects production call behavior or P0 flows, create a draft PR and ping @oncall (replace with actual handle) for manual review.
+
+# Automation allowed
+- Formatting, linting, and tests updates without human review.
+- Adding or updating docs that improve agent clarity.
+
+# Automation NOT allowed
+- Changing webhook signature verification.
+- Deploying env changes or committing secrets.
+- Changes that materially affect customer-facing voice tone without human QA.

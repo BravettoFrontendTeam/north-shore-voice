@@ -29,6 +29,12 @@ export interface GenerateOptions {
   stability?: number;
   similarity?: number;
   style?: number;
+  // Optional emotion metadata to guide TTS prosody
+  emotion?: string;
+  intensity?: number; // 1-10
+  pacing?: 'slow' | 'normal' | 'fast';
+  voice_style?: 'plain' | 'reflective' | 'assertive';
+  directive?: string; // free-form prosody directive
 }
 
 export interface GenerateResult {
@@ -36,6 +42,7 @@ export interface GenerateResult {
   audio_base64?: string;
   error?: string;
   duration?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface Voice {
@@ -111,6 +118,14 @@ export class AbëVoiceIntegration {
           stability,
           similarity_boost: similarity,
           style,
+          // Optional metadata to guide prosody and emotion
+          metadata: {
+            ...(options as any).emotion ? { emotion: (options as any).emotion } : {},
+            ...(options as any).intensity ? { intensity: (options as any).intensity } : {},
+            ...(options as any).pacing ? { pacing: (options as any).pacing } : {},
+            ...(options as any).voice_style ? { voice_style: (options as any).voice_style } : {},
+            ...(options as any).directive ? { directive: (options as any).directive } : {},
+          },
         }),
         timeout: 60000,
       } as any);
@@ -120,6 +135,7 @@ export class AbëVoiceIntegration {
         audio_base64?: string;
         error?: string;
         duration?: number;
+        metadata?: Record<string, any>;
       };
 
       if (data.success && data.audio_base64) {
@@ -127,6 +143,7 @@ export class AbëVoiceIntegration {
           success: true,
           audio_base64: data.audio_base64,
           duration: data.duration,
+          metadata: data.metadata,
         };
       } else {
         return {

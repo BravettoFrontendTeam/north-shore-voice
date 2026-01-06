@@ -2,14 +2,17 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 
-// Import routes
+// P0 Fix 4: Initialize database connection pool
+import { prisma } from './db';
+
 import authRoutes from './routes/auth';
 import voiceRoutes from './routes/voice';
 import callRoutes from './routes/calls';
@@ -20,45 +23,80 @@ import webhookRoutes from './routes/webhooks';
 import inboundRoutes, { initializeInboundRoutes } from './routes/inbound';
 import outboundRoutes, { initializeOutboundRoutes } from './routes/outbound';
 import telephonyRoutes, { initializeTelephony } from './routes/telephony';
-
-// Import WebSocket handler
 import { setupWebSocket, wsService } from './services/websocket';
 import { abevoiceIntegration } from './services/abevoice-integration';
+
+// North Shore Convergence (optional - gracefully handle if ConvergenceEngine not available)
+let northShoreConvergence: any = null;
+try {
+  // Try to initialize convergence if ConvergenceEngine is available
+  // This will be called from app-factory if ConvergenceEngine exists
+  const { initializeNorthShoreConvergence } = require('./services/north-shore-convergence');
+  northShoreConvergence = initializeNorthShoreConvergence;
+} catch (error) {
+  // ConvergenceEngine not available - continue without it
+  console.log('North Shore Convergence: ConvergenceEngine not available (continuing without convergence)');
+}
 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true,
-}));
 
-// Rate limiting
+const allowedOrigins = new Set<string>([
+  'http://localhost:3000',
+  'http://localhost:5000',
+  process.env.CORS_ORIGIN || 'http://localhost:3000',
+]);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.has(origin)) return cb(null, true);
+      return cb(new Error('CORS not allowed'));
+    },
+    credentials: true,
+  }),
+);
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: { error: 'Too many requests, please try again later.' },
 });
 app.use('/api/', limiter);
 
-// Body parsing (except for webhooks which need raw body)
 app.use('/api/webhooks', express.raw({ type: 'application/json' }));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
+const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-session-secret-do-not-use-in-production';
+app.use(
+  session({
+    name: 'JSESSIONID',
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    },
+  }),
+);
+
 app.get('/api/status', (req, res) => {
   res.json({
-    status: 'online',
+    status: 'ok',
+    online: true,
     timestamp: new Date().toISOString(),
     version: '1.0.0',
   });
 });
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/calls', callRoutes);
@@ -66,23 +104,19 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/webhooks', webhookRoutes);
-
-// Inbound/Outbound call services (mount at /api for consistency with route definitions)
 app.use('/api', inboundRoutes);
 app.use('/api', outboundRoutes);
-
-// Telephony multi-provider service
 app.use('/api/telephony', telephonyRoutes);
 
-// Setup WebSocket for real-time updates
-setupWebSocket(wss);
+// Admin routes: empathy controls & AbëKEYs testing (radically simple MVP)
+import adminRoutes from './routes/admin';
+app.use('/api/admin', adminRoutes);
 
-// Initialize services
+setupWebSocket(wss);
 initializeInboundRoutes(wsService, abevoiceIntegration);
 initializeOutboundRoutes(wsService, abevoiceIntegration);
 initializeTelephony();
 
-// Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
@@ -91,27 +125,17 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.BACKEND_PORT || process.env.PORT) || 5000;
+const HOST = process.env.BACKEND_HOST || process.env.HOST || '127.0.0.1';
 
-server.listen(PORT, () => {
-  console.log(`
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   🎤 North Shore Voice API Server                             ║
-║                                                               ║
-║   Server running on http://localhost:${PORT}                    ║
-║   WebSocket on ws://localhost:${PORT}                           ║
-║                                                               ║
-║   Environment: ${process.env.NODE_ENV || 'development'}                             ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-  `);
-});
+if (require.main === module) {
+  server.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST}:${PORT}`);
+  });
+}
 
 export { app, server, wss };
-
