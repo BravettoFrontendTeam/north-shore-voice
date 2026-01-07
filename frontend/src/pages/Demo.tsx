@@ -369,7 +369,7 @@ export default function Demo() {
   const playAudio = async (text: string) => {
     setIsPlaying(true)
     try {
-      const response = await fetch('http://localhost:5000/api/voice/generate', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5050'}/api/voice/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -377,6 +377,7 @@ export default function Demo() {
           voice: selectedVoice,
           stability: 0.5,
           similarity_boost: 0.75,
+          provider: 'elevenlabs',
         }),
       })
       
