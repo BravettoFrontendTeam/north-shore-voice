@@ -1,3 +1,5 @@
+const startTs = Date.now();
+
 /**
  * AbëVoice API Integration Service
  * Handles all communication with the AbëVoice text-to-speech API
@@ -5,14 +7,14 @@
 
 import fetch from 'node-fetch';
 
-// Pre-defined voices
+// Pre-defined voices (ElevenLabs Voice IDs)
 export const VOICES = {
-  abe: 'dMyQqiVXTU80dDl2eNK8',
-  marcus: 's3TPKV1kjDlVtZbl4Ksh',
-  luna: '3jR9BuQAOPMWUjWpi0ll',
-  zephyr: '4O1sYUnmtThcBoSBrri7',
-  evelyn: 'g6xIsTj2HwM6VR4iXFCw',
-  jasper: 'WyFXw4PzMbRnp8iLMJwY',
+  abe: 'SAz9YHcvj6GT2YYXdXww', // River - Relaxed, Neutral, Informative
+  marcus: 'IKne3meq5aSn9XLyUdCD', // Charlie - Deep, Confident, Energetic
+  luna: 'EXAVITQu4vr4xnSDxMaL', // Sarah - Mature, Reassuring, Confident
+  zephyr: 'CwhRBWXzGAHq8TQ4Fs17', // Roger - Laid-Back, Casual, Resonant
+  evelyn: 'FGY2WhTYpPnrIDTdsKH5', // Laura - Enthusiast, Quirky Attitude
+  jasper: 'JBFqnCBsd6RMkjVDRZzb', // George - Warm, Captivating Storyteller
 } as const;
 
 export type VoiceName = keyof typeof VOICES;
@@ -60,15 +62,18 @@ export interface UsageStats {
   requests_limit: number;
 }
 
-import ElevenLabsProvider from './tts/elevenlabs'
-import TTSCache from './tts/cache'
+import ElevenLabsProvider from './tts/elevenlabs';
+import TTSCache from './tts/cache';
 
 export class AbëVoiceIntegration {
   private baseUrl: string;
   private apiKey: string | undefined;
 
   constructor(baseUrl?: string, apiKey?: string) {
-    this.baseUrl = (baseUrl || process.env.ABEVOICE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+    this.baseUrl = (baseUrl || process.env.ABEVOICE_API_URL || 'http://localhost:8000').replace(
+      /\/$/,
+      '',
+    );
     this.apiKey = apiKey || process.env.ABEVOICE_API_KEY;
   }
 
@@ -89,7 +94,7 @@ export class AbëVoiceIntegration {
         method: 'GET',
         timeout: 5000,
       } as any);
-      const data = await response.json() as { status?: string };
+      const data = (await response.json()) as { status?: string };
       return data.status === 'online';
     } catch {
       return false;
@@ -100,46 +105,52 @@ export class AbëVoiceIntegration {
    * Generate speech from text
    */
   async generate(options: GenerateOptions): Promise<GenerateResult> {
-    const {
-      text,
-      voice = 'abe',
-      stability = 0.5,
-      similarity = 0.75,
-      style = 0.0,
-    } = options;
+    const { text, voice = 'abe', stability = 0.5, similarity = 0.75, style = 0.0 } = options;
 
     const voiceId = this.resolveVoiceId(voice);
 
     // Build cache key (includes provider if set)
-    const cacheKey = TTSCache.buildCacheKey({ text, voice: voiceId, provider: (options as any).provider || 'abevoice', emotion: (options as any).emotion, intensity: (options as any).intensity, pacing: (options as any).pacing })
+    const cacheKey = TTSCache.buildCacheKey({
+      text,
+      voice: voiceId,
+      provider: (options as any).provider || 'abevoice',
+      emotion: (options as any).emotion,
+      intensity: (options as any).intensity,
+      pacing: (options as any).pacing,
+    });
 
     // Try cache first
-    const cached = TTSCache.getCachedAudio(cacheKey)
+    const cached = TTSCache.getCachedAudio(cacheKey);
     if (cached) {
       return {
         success: true,
         audio_base64: cached.audio_base64,
         duration: undefined,
         metadata: { ...(cached.metadata || {}), provider: (options as any).provider || 'cache' },
-      }
+      };
     }
 
     // Provider override: delegate to ElevenLabs if requested
     if ((options as any).provider === 'elevenlabs' || (options as any).provider === 'eleven') {
-      const el = new ElevenLabsProvider(process.env.ELEVENLABS_API_KEY)
-      const res = await el.generate(options)
+      const el = new ElevenLabsProvider(process.env.ELEVENLABS_API_KEY);
+      const res = await el.generate(options);
       if (res.success && res.audio_base64) {
-        try { TTSCache.setCachedAudio(cacheKey, res.audio_base64, res.metadata || {}) } catch (e) {}
+        try {
+          TTSCache.setCachedAudio(cacheKey, res.audio_base64, res.metadata || {});
+        } catch (e) {}
       }
-      return res
+      return res;
     }
+
+    // Track start time for request latency metrics
+    const startTs = Date.now();
 
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/text-to-speech`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         body: JSON.stringify({
           text,
@@ -149,17 +160,17 @@ export class AbëVoiceIntegration {
           style,
           // Optional metadata to guide prosody and emotion
           metadata: {
-            ...(options as any).emotion ? { emotion: (options as any).emotion } : {},
-            ...(options as any).intensity ? { intensity: (options as any).intensity } : {},
-            ...(options as any).pacing ? { pacing: (options as any).pacing } : {},
-            ...(options as any).voice_style ? { voice_style: (options as any).voice_style } : {},
-            ...(options as any).directive ? { directive: (options as any).directive } : {},
+            ...((options as any).emotion ? { emotion: (options as any).emotion } : {}),
+            ...((options as any).intensity ? { intensity: (options as any).intensity } : {}),
+            ...((options as any).pacing ? { pacing: (options as any).pacing } : {}),
+            ...((options as any).voice_style ? { voice_style: (options as any).voice_style } : {}),
+            ...((options as any).directive ? { directive: (options as any).directive } : {}),
           },
         }),
         timeout: 60000,
       } as any);
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         success?: boolean;
         audio_base64?: string;
         error?: string;
@@ -180,8 +191,14 @@ export class AbëVoiceIntegration {
       }
 
       if (data.success && data.audio_base64) {
-        try { TTSCache.setCachedAudio(cacheKey, data.audio_base64, data.metadata || {}) } catch (e) {}
-        try { require('../utils/metrics').emitMetric('tts.request.latency', Date.now() - startTs, { provider: 'abevoice' }) } catch (e) {}
+        try {
+          TTSCache.setCachedAudio(cacheKey, data.audio_base64, data.metadata || {});
+        } catch (e) {}
+        try {
+          require('../utils/metrics').emitMetric('tts.request.latency', Date.now() - startTs, {
+            provider: 'abevoice',
+          });
+        } catch (e) {}
         return {
           success: true,
           audio_base64: data.audio_base64,
@@ -199,10 +216,20 @@ export class AbëVoiceIntegration {
         };
       }
     } catch (error) {
-      try { require('../utils/failure-store').recordFailure('abevoice', 'request_failed', error instanceof Error ? error.message : String(error)) } catch (e) {}
+      try {
+        require('../utils/failure-store').recordFailure(
+          'abevoice',
+          'request_failed',
+          error instanceof Error ? error.message : String(error),
+        );
+      } catch (e) {}
       // P0 Fix 1: In production, propagate errors instead of masking them
       if (process.env.NODE_ENV === 'production') {
-        throw new Error(`AbëVoice API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+          `AbëVoice API request failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        );
       }
       return {
         success: false,
@@ -230,11 +257,11 @@ export class AbëVoiceIntegration {
       const response = await fetch(`${this.baseUrl}/api/v1/voices`, {
         method: 'GET',
         headers: {
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         timeout: 10000,
       } as any);
-      return await response.json() as Voice[];
+      return (await response.json()) as Voice[];
     } catch {
       // Return predefined voices if API unavailable
       return Object.entries(VOICES).map(([name, voice_id]) => ({
@@ -252,11 +279,11 @@ export class AbëVoiceIntegration {
       const response = await fetch(`${this.baseUrl}/api/v1/usage`, {
         method: 'GET',
         headers: {
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         timeout: 10000,
       } as any);
-      return await response.json() as UsageStats;
+      return (await response.json()) as UsageStats;
     } catch {
       return {
         characters_used: 0,
@@ -294,14 +321,14 @@ export class AbëVoiceIntegration {
       voiceModelId?: string;
       greeting?: string;
       knowledgeBase?: string;
-    }
+    },
   ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/accept`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         body: JSON.stringify({
           call_id: callId,
@@ -312,7 +339,7 @@ export class AbëVoiceIntegration {
         timeout: 30000,
       } as any);
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         success?: boolean;
         session_id?: string;
         error?: string;
@@ -326,7 +353,11 @@ export class AbëVoiceIntegration {
     } catch (error) {
       // P0 Fix 1: Fail loud in production
       if (process.env.NODE_ENV === 'production') {
-        throw new Error(`AbëVoice API call acceptance failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+          `AbëVoice API call acceptance failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        );
       }
       // Dev mode: simulate for development
       console.log('AbëVoice API not available, simulating call acceptance');
@@ -348,14 +379,14 @@ export class AbëVoiceIntegration {
       voiceModelId: string;
       content: string;
       maxDuration?: number;
-    }
+    },
   ): Promise<{ success: boolean; callId?: string; error?: string }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/outbound`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         body: JSON.stringify({
           to: recipientNumber,
@@ -366,7 +397,7 @@ export class AbëVoiceIntegration {
         timeout: 30000,
       } as any);
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         success?: boolean;
         call_id?: string;
         error?: string;
@@ -380,7 +411,11 @@ export class AbëVoiceIntegration {
     } catch (error) {
       // P0 Fix 1: Fail loud in production
       if (process.env.NODE_ENV === 'production') {
-        throw new Error(`AbëVoice API outbound call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+          `AbëVoice API outbound call failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        );
       }
       // Dev mode: simulate for development
       console.log('AbëVoice API not available, simulating outbound call');
@@ -398,20 +433,20 @@ export class AbëVoiceIntegration {
    */
   async transferCall(
     callId: string,
-    transferTo: string
+    transferTo: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/${callId}/transfer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         body: JSON.stringify({ transfer_to: transferTo }),
         timeout: 10000,
       } as any);
 
-      const data = await response.json() as { success?: boolean; error?: string };
+      const data = (await response.json()) as { success?: boolean; error?: string };
       return { success: data.success || false, error: data.error };
     } catch (error) {
       console.log('AbëVoice API not available, simulating transfer');
@@ -428,12 +463,12 @@ export class AbëVoiceIntegration {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         timeout: 10000,
       } as any);
 
-      const data = await response.json() as { success?: boolean; error?: string };
+      const data = (await response.json()) as { success?: boolean; error?: string };
       return { success: data.success || false, error: data.error };
     } catch (error) {
       console.log('AbëVoice API not available, simulating call end');
@@ -444,22 +479,19 @@ export class AbëVoiceIntegration {
   /**
    * Mute/unmute a call
    */
-  async muteCall(
-    callId: string,
-    muted: boolean
-  ): Promise<{ success: boolean; error?: string }> {
+  async muteCall(callId: string, muted: boolean): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/${callId}/mute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         body: JSON.stringify({ muted }),
         timeout: 10000,
       } as any);
 
-      const data = await response.json() as { success?: boolean; error?: string };
+      const data = (await response.json()) as { success?: boolean; error?: string };
       return { success: data.success || false, error: data.error };
     } catch (error) {
       return { success: true };
@@ -469,22 +501,19 @@ export class AbëVoiceIntegration {
   /**
    * Send DTMF tones during a call
    */
-  async sendDTMF(
-    callId: string,
-    digits: string
-  ): Promise<{ success: boolean; error?: string }> {
+  async sendDTMF(callId: string, digits: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/${callId}/dtmf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         body: JSON.stringify({ digits }),
         timeout: 10000,
       } as any);
 
-      const data = await response.json() as { success?: boolean; error?: string };
+      const data = (await response.json()) as { success?: boolean; error?: string };
       return { success: data.success || false, error: data.error };
     } catch (error) {
       return { success: true };
@@ -503,12 +532,12 @@ export class AbëVoiceIntegration {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/${callId}/transcript`, {
         method: 'GET',
         headers: {
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         timeout: 10000,
       } as any);
 
-      const data = await response.json() as any;
+      const data = (await response.json()) as any;
       return {
         success: true,
         transcript: data.transcript || [],
@@ -534,12 +563,12 @@ export class AbëVoiceIntegration {
       const response = await fetch(`${this.baseUrl}/api/v1/calls/${callId}/recording`, {
         method: 'GET',
         headers: {
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
         },
         timeout: 10000,
       } as any);
 
-      const data = await response.json() as any;
+      const data = (await response.json()) as any;
       return {
         success: true,
         recordingUrl: data.recording_url,
@@ -561,4 +590,3 @@ export { AbëVoiceIntegration as AbevoiceIntegration };
 
 // Export for custom instances
 export default AbëVoiceIntegration;
-

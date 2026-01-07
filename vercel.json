@@ -33,11 +33,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "backend/src/**/*.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
   }
 }
