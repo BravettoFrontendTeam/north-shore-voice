@@ -41,11 +41,12 @@ if curl --silent --show-error --fail "$BASEURL/api/status" >/dev/null 2>&1; then
 
   if [ -n "$AUDIO_BASE64" ]; then
     echo "✅ Received audio — saving to tmp/demo.wav"
+    mkdir -p tmp
     echo "$AUDIO_BASE64" | base64 --decode > tmp/demo.wav
     if command -v afplay >/dev/null 2>&1; then
-      afplay tmp/demo.wav
+      afplay tmp/demo.wav || true
     elif command -v play >/dev/null 2>&1; then
-      play tmp/demo.wav
+      play tmp/demo.wav || true
     else
       echo "Audio saved to tmp/demo.wav (no playback tool detected)"
     fi
