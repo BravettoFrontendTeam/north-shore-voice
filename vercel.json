@@ -11,9 +11,17 @@
       "config": {
         "distDir": "dist"
       }
+    },
+    {
+      "src": "demo-live.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "^/demo-live$",
+      "dest": "demo-live.html"
+    },
     {
       "src": "^/api/(.*)$",
       "dest": "backend/src/index.ts"
