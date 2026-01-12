@@ -369,7 +369,7 @@ export default function Demo() {
   const playAudio = async (text: string) => {
     setIsPlaying(true)
     try {
-      const response = await fetch('http://localhost:5000/api/voice/generate', {
+      const response = await fetch('/api/voice/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

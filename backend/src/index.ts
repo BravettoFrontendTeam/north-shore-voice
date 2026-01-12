@@ -47,6 +47,8 @@ app.use(helmet());
 const allowedOrigins = new Set<string>([
   'http://localhost:3000',
   'http://localhost:5000',
+  'https://bravetto.vip',
+  'https://www.bravetto.vip',
   process.env.CORS_ORIGIN || 'http://localhost:3000',
 ]);
 

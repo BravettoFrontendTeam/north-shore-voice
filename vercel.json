@@ -15,20 +15,16 @@
   ],
   "routes": [
     {
-      "src": "/vip/north-shore-back-end/(.*)",
+      "src": "^/api/(.*)$",
       "dest": "backend/src/index.ts"
     },
     {
-      "src": "/vip/north-shore/(.*)",
+      "src": "^/vip/north-shore-back-end/(.*)$",
+      "dest": "backend/src/index.ts"
+    },
+    {
+      "src": "^/(.*)$",
       "dest": "frontend/dist/$1"
-    },
-    {
-      "src": "/vip/north-shore",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/vip/north-shore-back-end",
-      "dest": "backend/src/index.ts"
     }
   ],
   "env": {
